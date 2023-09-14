@@ -61,6 +61,39 @@ def check_http_connection(address, json_check):
                     if tx_index != 'on':
                         print('    ❗ This public RPC has not activated the TX Index ❗')
                     print('    🟢', end =' ')
+        case "archive_nodes":
+            URL = address + '/status?'
+            print (' 🌍 Attempting to connect to %s'  % (URL))
+            try:
+                # print(URL)
+                response_check = requests.get(URL, headers={"Accept": "application/json"}, timeout=5)
+                print ('    🍌 RESPONSE: %s ' % (response_check))
+            except:
+                output = 'ERROR. Connection to server:  %s failed' % (URL)
+                print('    ⛔ ', end =' ')
+            else:
+                try:
+                    json_response = response_check.json()
+                except:
+                    json_error = 'An error occurred getting the JSON data'
+                    print('    ⛔ ', end =' ')
+                    output = json_error
+                else:        
+                    json_response = response_check.json()
+                    id = json_response["result"]["node_info"]["id"]
+                    moniker = json_response["result"]["node_info"]["moniker"]
+                    synced = json_response["result"]["sync_info"]["catching_up"]
+                    earliest_block = json_response["result"]["sync_info"]["earliest_block_height"]
+                    voting_power = json_response["result"]["validator_info"]["voting_power"]
+                    output = id, moniker, synced, earliest_block, voting_power
+                    if int(voting_power) > 0:
+                        print('    ❗ This public RPC is running in a MainNET Validator ❗')
+                    if synced != False:
+                        print('    ❗ This public RPC is NOT SYNCED at MainNET ❗')
+                    if int(earliest_block) != 1:
+                        print('    ❗❗ This Archive Node does not sync the whole chain ❗❗')
+                    else:
+                        print('    🟢 This Archive Node syncs the whole chain')
         case "lcd":
             print('lcd')
         case "grpc":
@@ -118,6 +151,16 @@ def check_grpc():
             message = check_http_connection(grpc.get('address'), 'grpc')
             print(message, end='\n\n')
             time.sleep(1) # let's breath the client
+
+def check_archive_nodes(): #archive_nodes: connection, prune strategy, sinced, voting power
+        archives = json_response.get('archive_nodes')
+        print('\n🌈 We are going to check the following RPC Archive Nodes:\nGathered data: node_id, moniker, synced, voting_power (is validator?)\n')
+        # print('\n' + str(archives))
+        for archive in archives:
+            message = check_http_connection(archive.get('address'), 'archive_nodes')
+            print(message, end='\n\n')
+            time.sleep(1) # let's breath the client
+
 def main():
     # Let's get the JSON file from Github
     try:
@@ -132,6 +175,7 @@ def main():
     check_persistent_peers()
     check_rpc()
     check_grpc()
+    check_archive_nodes()
 
 if __name__ == "__main__":
     main()
