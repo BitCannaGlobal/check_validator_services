@@ -1,13 +1,11 @@
 #python3
 import requests
-import datetime
+# import datetime
 import time
-import os
-import json
 import socket
 
 
-lcd_bitcanna='https://lcd.bitcanna.io/cosmos/bank/v1beta1/balances/'
+lcd_bitcanna = 'https://lcd.bitcanna.io/cosmos/bank/v1beta1/balances/'
 chain_registry = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/chain-registry.json'
 
 
@@ -30,18 +28,18 @@ def check_peers_seeds_connection(address, port):
     return output
 
 def check_http_connection(address, json_check):
-    URL = address + '/status?'
-    print (' 🌍 Attempting to connect to %s'  % (URL))
-    try:
-        # print(URL)
-        response_check = requests.get(URL, headers={"Accept": "application/json"},)
-        print ('    🍌 RESPONSE: %s ' % (response_check))
-    except:
-        output = 'ERROR. Connection to server:  %s failed' % (URL)
-        print('    ⛔ ', end =' ')
-    else:
-        match json_check:
-            case "rpc":
+    match json_check:
+        case "rpc":
+            URL = address + '/status?'
+            print (' 🌍 Attempting to connect to %s'  % (URL))
+            try:
+                # print(URL)
+                response_check = requests.get(URL, headers={"Accept": "application/json"}, timeout=5)
+                print ('    🍌 RESPONSE: %s ' % (response_check))
+            except:
+                output = 'ERROR. Connection to server:  %s failed' % (URL)
+                print('    ⛔ ', end =' ')
+            else:
                 try:
                     json_response = response_check.json()
                 except:
@@ -63,9 +61,20 @@ def check_http_connection(address, json_check):
                     if tx_index != 'on':
                         print('    ❗ This public RPC has not activated the TX Index ❗')
                     print('    🟢', end =' ')
-            case "lcd":
-                print('lcd')
-
+        case "lcd":
+            print('lcd')
+        case "grpc":
+            print (' 🌍 Attempting to connect to %s'  % (address))
+            try:
+                # print(URL)
+                response_check = requests.get(address, headers={'Accept': '*/*', 'Content-Type': '*/*'},  timeout=5)
+                print ('    🍌 RESPONSE: %s ' % (response_check))
+            except:
+                output = 'ERROR. Connection to server:  %s failed' % (address)
+                print('    ⛔ ', end =' ')
+            else:
+                output = 'Connection to GRPC is successfully done.'
+                print('    🟢 ', end =' ')
     return output
 
 def check_seeds():
@@ -100,6 +109,15 @@ def check_rpc(): #rpc: connection, tx_index active, prune strategy, voting power
             message = check_http_connection(rpc.get('address'), 'rpc')
             print(message, end='\n\n')
             time.sleep(1) # let's breath the client
+
+def check_grpc():
+        grpcs = json_response.get('apis').get('grpc')
+        print('\n🌈 We are going to check the following GRPC servers:\n')
+        # print('\n' + str(grpcs))
+        for grpc in grpcs:
+            message = check_http_connection(grpc.get('address'), 'grpc')
+            print(message, end='\n\n')
+            time.sleep(1) # let's breath the client
 def main():
     # Let's get the JSON file from Github
     try:
@@ -113,7 +131,7 @@ def main():
     check_seeds()
     check_persistent_peers()
     check_rpc()
-
+    check_grpc()
 
 if __name__ == "__main__":
     main()
