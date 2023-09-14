@@ -161,6 +161,15 @@ def check_archive_nodes(): #archive_nodes: connection, prune strategy, sinced, v
             print(message, end='\n\n')
             time.sleep(1) # let's breath the client
 
+def check_explorer(): # check if an explorer is alive or not
+        explorers = json_response.get('explorers')
+        print('\n🌈 We are going to check connectivity of the following EXPLORERS:\n')
+        # print('\n' + str(explorers))
+        for explorer in explorers:
+            message = check_http_connection(explorer.get('url'), 'grpc')
+            print(message, end='\n\n')
+            time.sleep(1) # let's breath the client
+
 def main():
     # Let's get the JSON file from Github
     try:
@@ -176,6 +185,7 @@ def main():
     check_rpc()
     check_grpc()
     check_archive_nodes()
+    check_explorer()
 
 if __name__ == "__main__":
     main()
