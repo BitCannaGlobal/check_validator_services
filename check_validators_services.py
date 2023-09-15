@@ -9,7 +9,8 @@ lcd_info = '/cosmos/base/tendermint/v1beta1/node_info'
 lcd_syncing = '/cosmos/base/tendermint/v1beta1/syncing'
 app_version = '2.0.3'
 rpc_info = '/status?'
-chain_registry = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/chain-registry.json'
+bc_chain_registry = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/chain-registry.json'
+cosmos_chain_registry = 'https://raw.githubusercontent.com/cosmos/chain-registry/master/bitcanna/chain.json'
 
 
 def check_peers_seeds_connection(address, port):
@@ -163,80 +164,63 @@ def check_http_connection(address, json_check):
             else:
                 output = 'Connection to GRPC is successfully done.'
                 print('    🟢 ', end =' ')
-    return output
+    return output 
 
-def check_seeds():
-    seeds = json_response.get('peers').get('seeds')
-    print('\n🌈 We are going to check the following SEEDS:\n')
-    for seed in seeds:
+def do_checks(services):
+    print(services)
+    for service in services:
+        match service:
+            case 'lcds':
+                elements = json_response.get('apis').get('rest')
+                # print(elements)
+                field = 'address'
+                type = 'lcd'               
+            case 'grpcs':
+                elements = json_response.get('apis').get('grpc')
+                field = 'address'
+                type = 'grpc'
+            case 'rpcs':
+                elements = json_response.get('apis').get('rpc')
+                field = 'address'
+                type = 'rpc' 
+            case 'explorers':
+                elements = json_response.get('explorers')
+                field = 'url'
+                type = 'grpc'
+            case 'archive_nodes':
+                elements = json_response.get('archive_nodes')
+                field = 'address'
+                type = 'archive_nodes'   
+        print('\n🌈 We are going to check the following **%s** services' % service)
+        for element in elements:
+            message = check_http_connection(element.get(field), type)
+            print(message, end='\n\n')
+            time.sleep(1) # let's breath the client
+
+def do_check_connections(connections):
+    print(connections)
+    for connection in connections:
+        match connection:
+            case 'seeds':
+                elements = json_response.get('peers').get('seeds')             
+            case 'peers':
+                elements = json_response.get('peers').get('persistent_peers')
+        print('\n🌈 We are going to check the following **%s** connections' % connection)
+        for element in elements:
         # print('\n' + str(seed))
-        host = seed.get('address')
-        hostname = host.split(":")
-        message = check_peers_seeds_connection(hostname[0], hostname[1])
-        print(message)
-        node_id = seed.get('id')
-        print('    🍏 Node_ID provided: %s' % (node_id) + '\n')        
-
-def check_persistent_peers(): #check connection
-    ppers = json_response.get('peers').get('persistent_peers')
-    print('\n🌈 We are going to check the following PERSISTENT PEERS:\n')
-    for peers in ppers:
-        # print('\n' + str(peers))
-        host = peers.get('address')
-        hostname = host.split(":")
-        message = check_peers_seeds_connection(hostname[0], hostname[1])
-        print(message)
-        node_id = peers.get('id')
-        print('    🍏 Node_ID provided: %s' % (node_id) + '\n')            
-
-def check_rpc(): #rpc: connection, tx_index active, prune strategy, voting power
-    rpcs = json_response.get('apis').get('rpc')
-    print('\n🌈 We are going to check the following RPC servers:\nGathered data: node_id, moniker, tx_index, synced, voting_power (is validator?)\n')
-    # print('\n' + str(rpcs))
-    for rpc in rpcs:
-        message = check_http_connection(rpc.get('address'), 'rpc')
-        print(message, end='\n\n')
-        time.sleep(1) # let's breath the client
-
-def check_grpc():
-    grpcs = json_response.get('apis').get('grpc')
-    print('\n🌈 We are going to check the following GRPC servers:\n')
-    # print('\n' + str(grpcs))
-    for grpc in grpcs:
-        message = check_http_connection(grpc.get('address'), 'grpc')
-        print(message, end='\n\n')
-        time.sleep(1) # let's breath the client
-
-def check_archive_nodes(): #archive_nodes: connection, prune strategy, sinced, voting power
-    archives = json_response.get('archive_nodes')
-    print('\n🌈 We are going to check the following RPC Archive Nodes:\nGathered data: node_id, moniker, synced, voting_power (is validator?)\n')
-    # print('\n' + str(archives))
-    for archive in archives:
-        message = check_http_connection(archive.get('address'), 'archive_nodes')
-        print(message, end='\n\n')
-        time.sleep(1) # let's breath the client
-
-def check_explorer(): # check if an explorer is alive or not
-    explorers = json_response.get('explorers')
-    print('\n🌈 We are going to check connectivity of the following EXPLORERS:\n')
-    # print('\n' + str(explorers))
-    for explorer in explorers:
-        message = check_http_connection(explorer.get('url'), 'grpc')
-        print(message, end='\n\n')
-        time.sleep(1) # let's breath the client
-
-def check_lcd():
-    lcds = json_response.get('apis').get('rest')
-    print('\n🌈 We are going to check the following LCD servers:\nGathered data: node_id, moniker, tx_index, synced, voting_power (is validator?)\n')
-    # print('\n' + str(lcds))
-    for lcd in lcds:
-        message = check_http_connection(lcd.get('address'), 'lcd')
-        print(message, end='\n\n')
-        time.sleep(1) # let's breath the client
-
-
+            host = element.get('address')
+            hostname = host.split(":")
+            message = check_peers_seeds_connection(hostname[0], hostname[1])
+            print(message, end='\n')
+            node_id = element.get('id')
+            provider = element.get('provider')
+            print('    🍌 Node_ID: %s' % (node_id))
+            print('    🍌 Validator: %s' % (provider) + '\n')
+            time.sleep(1) # let's breath the client
 def main():
     # Let's get the JSON file from Github
+    chain_registry = bc_chain_registry # BitCanna github
+    # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
         response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)
     except:
@@ -245,13 +229,10 @@ def main():
     else:
        global json_response 
        json_response = response_check.json()
-    check_seeds()
-    check_persistent_peers()
-    check_rpc()
-    check_grpc()
-    check_archive_nodes()
-    check_explorer()
-    check_lcd()
+
+    do_check_connections(['seeds', 'peers'])
+    # CHECKS: ['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes']
+    do_checks(['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes'])
 
 if __name__ == "__main__":
     main()
