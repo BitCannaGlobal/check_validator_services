@@ -3,6 +3,7 @@ import requests
 # import datetime
 import time
 import socket
+import os
 
 
 lcd_info = '/cosmos/base/tendermint/v1beta1/node_info'
@@ -40,6 +41,10 @@ def check_http_connection(address, json_check):
                 # print(URL)
                 response_check = requests.get(URL, headers={"Accept": "application/json"}, timeout=5)
                 print ('    🍌 RESPONSE: %s ' % (response_check))
+                if response_check.status_code != 200:
+                    output = 'ERROR. Status code at server:  %s is: %s   failed' % (URL, str(response_check.status_code))
+                    print('    ⛔ ' + output)
+                    pass               
             except:
                 output = 'ERROR. Connection to server:  %s failed' % (URL)
                 print('    ⛔ ', end =' ')
@@ -98,6 +103,18 @@ def check_http_connection(address, json_check):
                         print('    ❗❗ This Archive Node does not sync the whole chain ❗❗')
                     else:
                         print('    🟢 This Archive Node syncs the whole chain')
+        case "explorer":
+            URL = address
+            print (' 🌍 Attempting to connect to %s'  % (URL))
+            try:
+                response_check = requests.get(URL, headers={"Accept": "application/json"}, timeout=5)
+                print ('    🍌 RESPONSE: %s ' % (response_check))
+            except:
+                output = 'ERROR. Connection to server:  %s failed' % (URL)
+                print('    ⛔ ', end =' ')
+            else:
+                print('    🟢 ', end =' ')
+                output = 'Connected'
         case "lcd":
             URL = address + lcd_info
             print (' 🌍 Attempting to connect to %s'  % (URL))
@@ -151,20 +168,26 @@ def check_http_connection(address, json_check):
                     if syncing != False:
                         print('    ❗ This public LCD is NOT SYNCED at MainNET ❗')
                     print('    🟢', end =' ')
-
         case "grpc":
             print (' 🌍 Attempting to connect to %s'  % (address))
-            try:
-                # print(URL)
-                response_check = requests.get(address, headers={'Accept': '*/*', 'Content-Type': '*/*'},  timeout=5)
-                print ('    🍌 RESPONSE: %s ' % (response_check))
-            except:
-                output = 'ERROR. Connection to server:  %s failed' % (address)
-                print('    ⛔ ', end =' ')
+            # determine if is a TLS connection or not
+            hostname = address.split(":")
+            port = hostname[1]
+            if port == '443':
+                plaintext = ''
             else:
+                plaintext = '-plaintext '
+            cmd = 'grpcurl -vv ' + plaintext + address + ' list'
+            #print(cmd)
+            returned_value = os.system(cmd)  # returns the exit code in unix
+            # print('returned value:', returned_value)
+            if returned_value == 0:
                 output = 'Connection to GRPC is successfully done.'
                 print('    🟢 ', end =' ')
-    return output 
+            else:
+                output = 'ERROR. Connection to server:  %s failed' % (address)
+                print('    ⛔ ', end =' ')               
+    return output
 
 def do_checks(services):
     print(services)
@@ -172,7 +195,6 @@ def do_checks(services):
         match service:
             case 'lcds':
                 elements = json_response.get('apis').get('rest')
-                # print(elements)
                 field = 'address'
                 type = 'lcd'               
             case 'grpcs':
@@ -186,11 +208,19 @@ def do_checks(services):
             case 'explorers':
                 elements = json_response.get('explorers')
                 field = 'url'
-                type = 'grpc'
+                type = 'explorer'
             case 'archive_nodes':
                 elements = json_response.get('archive_nodes')
                 field = 'address'
-                type = 'archive_nodes'   
+                type = 'archive_nodes'  
+            case 'state_sync':
+                elements = json_response.get('state_sync')
+                field = 'address'
+                type = 'rpc'
+            case 'explorers':
+                elements = json_response.get('explorers')
+                field = 'url'
+                type = 'explorer'
         print('\n🌈 We are going to check the following **%s** services' % service)
         for element in elements:
             message = check_http_connection(element.get(field), type)
@@ -207,20 +237,22 @@ def do_check_connections(connections):
                 elements = json_response.get('peers').get('persistent_peers')
         print('\n🌈 We are going to check the following **%s** connections' % connection)
         for element in elements:
-        # print('\n' + str(seed))
+            print('\n' + str(element))
             host = element.get('address')
             hostname = host.split(":")
-            message = check_peers_seeds_connection(hostname[0], hostname[1])
-            print(message, end='\n')
             node_id = element.get('id')
             provider = element.get('provider')
+            message = check_peers_seeds_connection(hostname[0], hostname[1])
+            print(message)
             print('    🍌 Node_ID: %s' % (node_id))
-            print('    🍌 Validator: %s' % (provider) + '\n')
+            print('    🍌 Provider: %s' % (provider) + '\n')
+
+
             time.sleep(1) # let's breath the client
 def main():
     # Let's get the JSON file from Github
     chain_registry = bc_chain_registry # BitCanna github
-    # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
+    #chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
         response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)
     except:
@@ -230,9 +262,9 @@ def main():
        global json_response 
        json_response = response_check.json()
 
+    # CHECKS: ['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes', 'state_sync']
+    do_checks(['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes', 'state_sync'])
     do_check_connections(['seeds', 'peers'])
-    # CHECKS: ['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes']
-    do_checks(['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes'])
 
 if __name__ == "__main__":
     main()
