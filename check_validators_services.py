@@ -16,7 +16,7 @@ bc_testnet = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/devnets
 cosmos_chain_registry = 'https://raw.githubusercontent.com/cosmos/chain-registry/master/bitcanna/chain.json'
 
 PATH = './'
-LOG_FILE = 'VIP_checks.log'
+LOG_FILE = 'VIP_checks.csv'
 DATABASE = 'VIP.db'
 
 def check_peers_seeds_connection(address, port):
@@ -169,17 +169,23 @@ def check_http_connection(address, json_check, owner, extra):
                 else:        
                     json_response = response_check.json()
                     result = 1
-                    id = json_response["default_node_info"]["default_node_id"]
-                    moniker_raw = json_response["default_node_info"]["moniker"]
-                    moniker = moniker_raw.replace("'", " ")
-                    tx_index = json_response["default_node_info"]["other"]["tx_index"]
-                    version = json_response["application_version"]["version"]
-                    if version != app_version:
-                        print('    ❗ This public LCD is not running the last version of the BCNA software ❗')
-                    if tx_index != 'on':
-                        print('    ❗ This public LCD has not activated the TX Index ❗')
-                    print('    🟢', end =' ')
-                    extra_info = 'Moniker: ' + moniker + ' - TX_Index: ' + tx_index + ' - Version: ' + version
+                    try:
+                        id = json_response["default_node_info"]["default_node_id"]
+                    except:
+                        result = 0
+                        message = json_response["message"]
+                        extra_info = "ERROR: " + message
+                    else:
+                        moniker_raw = json_response["default_node_info"]["moniker"]
+                        moniker = moniker_raw.replace("'", " ")
+                        tx_index = json_response["default_node_info"]["other"]["tx_index"]
+                        version = json_response["application_version"]["version"]
+                        if version != app_version:
+                            print('    ❗ This public LCD is not running the last version of the BCNA software ❗')
+                        if tx_index != 'on':
+                            print('    ❗ This public LCD has not activated the TX Index ❗')
+                        print('    🟢', end =' ')
+                        extra_info = 'Moniker: ' + moniker + ' - TX_Index: ' + tx_index + ' - Version: ' + version
             output_connection = json_check + ',' + str(result) + ',' + owner + ',' + URL + ',' + extra_info
             # check the syncing
             URL = address + lcd_syncing
@@ -200,13 +206,16 @@ def check_http_connection(address, json_check, owner, extra):
                     syncing_json_error = 'An error occurred getting the JSON Syncing data'
                     print('    ⛔ ', end =' ')
                     output = output_connection + ' - Syncing: ' + syncing_json_error
-                else:        
-                    json_response = response_check.json()
-                    syncing  = json_response["syncing"]
-                    output = output_connection + ' - Syncing: ' + str(syncing)
-                    if syncing != False:
-                        print('    ❗ This public LCD is NOT SYNCED at MainNET ❗')
-                    print('    🟢', end =' ')
+                else:
+                    if result == 1:
+                        json_response = response_check.json()
+                        syncing  = json_response["syncing"]
+                        output = output_connection + ' - Syncing: ' + str(syncing)
+                        if syncing != False:
+                            print('    ❗ This public LCD is NOT SYNCED at MainNET ❗')
+                        print('    🟢', end =' ')
+                    else:
+                        output = output_connection + "- Syncing: ERROR, it can't be checked"
         case "grpc":
             print (' 🌍 Attempting to connect to %s'  % (address))
             # determine if is a TLS connection or not
@@ -277,7 +286,7 @@ def do_checks(services):
                 message = check_http_connection(element.get(field), type, element.get(validator), element.get(extra))
             else:
                 message = check_http_connection(element.get(field), type, element.get(validator), extra)
-            print(message, end='\n\n')
+            print('', end='\n\n')
             ### Loging
             log_this(message)
             database_save(message)
@@ -316,7 +325,8 @@ def log_this(log_info):
 
 def database_save(data):
     fields = data.split(',')
-    sql_sentence = "INSERT INTO services VALUES ('"+fields[0]+"','"+fields[1]+"','"+fields[2]+"','"+fields[3]+"','"+fields[4]+"')"
+    current_date = strftime('%d-%m-%Y-%H:%M') 
+    sql_sentence = "INSERT INTO services VALUES ('"+fields[0]+"','"+fields[1]+"','"+fields[2]+"','"+fields[3]+"','"+fields[4]+"', '" + current_date + "')"
     #print(sql_sentence)
     with closing(sqlite3.connect(DATABASE)) as connection:
         with closing(connection.cursor()) as cursor:
@@ -327,8 +337,8 @@ def database_save(data):
 def main():
     # Let's get the JSON file from Github
     chain_registry = bc_chain_registry # BitCanna github
-    #chain_registry = bc_testnet # BitCanna-dev-1 
-    #chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
+    # chain_registry = bc_testnet # BitCanna-dev-1 
+    # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
         response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)
     except:
@@ -339,10 +349,14 @@ def main():
        json_response = response_check.json()
 
     do_checks(['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes', 'state_sync']) #---> BitCanna Github
-    #do_checks(['rpcs', 'grpcs', 'lcds', 'explorers']) #--> Cosmos Github
-    #do_checks(['state_sync'])
+    # do_checks(['rpcs', 'grpcs', 'lcds', 'explorers']) #--> Cosmos Github
+    # do_checks(['state_sync'])
 
     do_check_connections(['seeds', 'peers'])
 
 if __name__ == "__main__":
-    main()
+    main()  
+    # TO-DO: check if the CSV file exist, if not, create it with this headers 
+    # column_names = ['Timestamp', 'NodeType', 'Status', 'NodeName', 'ConnectionAddress', 'NodeID']
+    #
+    # Make the same with DB. Create the file and structure if doesn't exist 
