@@ -1,4 +1,5 @@
 #python3
+# Create the DB structure and file using https://github.com/BitCannaGlobal/check_validator_services/blob/main/create_database_schema.py
 import requests
 from time import sleep, strftime
 import socket
@@ -9,7 +10,7 @@ from contextlib import closing
 
 lcd_info = '/cosmos/base/tendermint/v1beta1/node_info'
 lcd_syncing = '/cosmos/base/tendermint/v1beta1/syncing'
-app_version = '2.0.3'
+app_version = '3.0.0'
 rpc_info = '/status?'
 bc_chain_registry = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/chain-registry.json'
 bc_testnet = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/devnets/bitcanna-dev-1/chain-registry.json'
@@ -70,23 +71,32 @@ def check_http_connection(address, json_check, owner, extra):
                     print('    ⛔ ', end =' ')
                     extra_info = extra_info + ' - ' + json_error + url_doc
                     result = 0
-                else:        
-                    json_response = response_check.json()
-                    result = 1
-                    id = json_response["result"]["node_info"]["id"]
-                    moniker_raw = json_response["result"]["node_info"]["moniker"]
-                    moniker = moniker_raw.replace("'", " ")
-                    tx_index = json_response["result"]["node_info"]["other"]["tx_index"]
-                    syncing = json_response["result"]["sync_info"]["catching_up"]
-                    voting_power = json_response["result"]["validator_info"]["voting_power"]
-                    if int(voting_power) > 0:
-                        print('    ❗ This public RPC is running in a MainNET Validator ❗')
-                    if syncing != False:
-                        print('    ❗ This public RPC is NOT SYNCED at MainNET ❗')
-                    if tx_index != 'on':
-                        print('    ❗ This public RPC has not activated the TX Index ❗')
-                    print('    🟢', end =' ')
-                    extra_info = 'Moniker: ' + moniker + ' - Syncing: ' + str(syncing) + ' - TX_Index: ' + str(tx_index) + ' - Voting Power: ' + str(voting_power)
+                else:
+                    try:
+                        json_response = response_check.json()
+                        id = json_response["result"]["node_info"]["id"]
+                    except:
+                        json_error = 'An error occurred getting the JSON Node data'
+                        print('    ⛔ ', end =' ')
+                        extra_info = extra_info + ' - ' + json_error
+                        result = 0
+                    else:         
+                        json_response = response_check.json()
+                        result = 1
+                        id = json_response["result"]["node_info"]["id"]
+                        moniker_raw = json_response["result"]["node_info"]["moniker"]
+                        moniker = moniker_raw.replace("'", " ")
+                        tx_index = json_response["result"]["node_info"]["other"]["tx_index"]
+                        syncing = json_response["result"]["sync_info"]["catching_up"]
+                        voting_power = json_response["result"]["validator_info"]["voting_power"]
+                        if int(voting_power) > 0:
+                            print('    ❗ This public RPC is running in a MainNET Validator ❗')
+                        if syncing != False:
+                            print('    ❗ This public RPC is NOT SYNCED at MainNET ❗')
+                        if tx_index != 'on':
+                            print('    ❗ This public RPC has not activated the TX Index ❗')
+                        print('    🟢', end =' ')
+                        extra_info = 'Moniker: ' + moniker + ' - Syncing: ' + str(syncing) + ' - TX_Index: ' + str(tx_index) + ' - Voting Power: ' + str(voting_power)
             output = json_check + ',' + str(result) + ',' + owner + ',' + URL + ',' + extra_info + url_doc
         case "archive_nodes":
             extra_info = 'No extra info: '
@@ -336,8 +346,8 @@ def database_save(data):
 
 def main():
     # Let's get the JSON file from Github
-    chain_registry = bc_chain_registry # BitCanna github
-    # chain_registry = bc_testnet # BitCanna-dev-1 
+    # chain_registry = bc_chain_registry # BitCanna github
+    chain_registry = bc_testnet # BitCanna-dev-1 
     # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
         response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)
