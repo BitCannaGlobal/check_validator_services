@@ -10,7 +10,7 @@ from contextlib import closing
 
 lcd_info = '/cosmos/base/tendermint/v1beta1/node_info'
 lcd_syncing = '/cosmos/base/tendermint/v1beta1/syncing'
-app_version = '3.0.0'
+app_version = '3.1.0'
 rpc_info = '/status?'
 bc_chain_registry = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/chain-registry.json'
 bc_testnet = 'https://raw.githubusercontent.com/BitCannaGlobal/bcna/main/devnets/bitcanna-dev-1/chain-registry.json'
@@ -346,8 +346,8 @@ def database_save(data):
 
 def main():
     # Let's get the JSON file from Github
-    # chain_registry = bc_chain_registry # BitCanna github
-    chain_registry = bc_testnet # BitCanna-dev-1 
+    chain_registry = bc_chain_registry # BitCanna github
+    # chain_registry = bc_testnet # BitCanna-dev-1 
     # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
         response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)

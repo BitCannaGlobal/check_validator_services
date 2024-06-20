@@ -6,7 +6,7 @@ database = 'VIP.db'
 
 with closing(sqlite3.connect(database)) as connection:
     with closing(connection.cursor()) as cursor:
-        cursor.execute("CREATE TABLE services (service TEXT, result TEXT, owner TEXT, url TEXT, extra_output TEXT)")
+        cursor.execute("CREATE TABLE services (service TEXT, result TEXT, owner TEXT, url TEXT, extra_output TEXT, current_date TEXT)")
         rows = cursor.execute("SELECT * FROM services").fetchall()
         print(rows)
 
