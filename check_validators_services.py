@@ -1,5 +1,5 @@
 #python3
-# Create the DB structure and file using https://github.com/BitCannaGlobal/check_validator_services/blob/main/create_database_schema.py
+# Config at line 23
 import requests
 from time import sleep, strftime
 import socket
@@ -19,6 +19,14 @@ cosmos_chain_registry = 'https://raw.githubusercontent.com/cosmos/chain-registry
 PATH = './'
 LOG_FILE = 'VIP_checks.csv'
 DATABASE = 'VIP.db'
+
+# Let's get the JSON file from Github: Un-comment one of the 3 to config the script
+CHAIN_REGISTRY = [bc_chain_registry, 'bc_chain_registry'] # BitCanna github
+# CHAIN_REGISTRY = [bc_testnet, 'bc_testnet'] # BitCanna-dev-1 
+# CHAIN_REGISTRY = [cosmos_chain_registry,'cosmos_chain_registry'] # Cosmos Chain-Registry github
+
+FULL_NAME_DB = PATH +  CHAIN_REGISTRY[1] + '_' + DATABASE
+FULL_NAME_LOG = PATH + CHAIN_REGISTRY[1] + '_' + LOG_FILE
 
 def check_peers_seeds_connection(address, port):
  
@@ -330,7 +338,7 @@ def do_check_connections(connections):
 
 def log_this(log_info):
     string_to_log = strftime('%d-%m-%Y-%H:%M') + ',' + log_info + '\n'
-    file_log = open(PATH + LOG_FILE, "a")
+    file_log = open(FULL_NAME_LOG, "a")
     file_log.write (string_to_log)
 
 def database_save(data):
@@ -338,26 +346,28 @@ def database_save(data):
     current_date = strftime('%d-%m-%Y-%H:%M') 
     sql_sentence = "INSERT INTO services VALUES ('"+fields[0]+"','"+fields[1]+"','"+fields[2]+"','"+fields[3]+"','"+fields[4]+"', '" + current_date + "')"
     #print(sql_sentence)
-    with closing(sqlite3.connect(DATABASE)) as connection:
+    with closing(sqlite3.connect(FULL_NAME_DB)) as connection:
         with closing(connection.cursor()) as cursor:
             rows = cursor.execute(sql_sentence)
             connection.commit()
 
+def create_db():
+    with closing(sqlite3.connect(FULL_NAME_DB)) as connection:
+        with closing(connection.cursor()) as cursor:
+            cursor.execute("CREATE TABLE IF NOT EXISTS services (service TEXT, result TEXT, owner TEXT, url TEXT, extra_output TEXT, current_date TEXT)")
+            rows = cursor.execute("SELECT * FROM services").fetchall()
+            print(rows)
 
 def main():
-    # Let's get the JSON file from Github
-    chain_registry = bc_chain_registry # BitCanna github
-    # chain_registry = bc_testnet # BitCanna-dev-1 
-    # chain_registry = cosmos_chain_registry # Cosmos Chain-Registry github
     try:
-        response_check = requests.get(chain_registry, headers={"Accept": "application/json"},)
+        response_check = requests.get(CHAIN_REGISTRY[0], headers={"Accept": "application/json"},)
     except:
-        conn_error = 'An error occurred getting the info at: ' + chain_registry
+        conn_error = 'An error occurred getting the info at: ' + CHAIN_REGISTRY[0]
         print("\n"+conn_error)
     else:
        global json_response 
        json_response = response_check.json()
-
+    create_db()
     do_checks(['rpcs', 'grpcs', 'lcds', 'explorers', 'archive_nodes', 'state_sync']) #---> BitCanna Github
     # do_checks(['rpcs', 'grpcs', 'lcds', 'explorers']) #--> Cosmos Github
     # do_checks(['state_sync'])
@@ -369,4 +379,3 @@ if __name__ == "__main__":
     # TO-DO: check if the CSV file exist, if not, create it with this headers 
     # column_names = ['Timestamp', 'NodeType', 'Status', 'NodeName', 'ConnectionAddress', 'NodeID']
     #
-    # Make the same with DB. Create the file and structure if doesn't exist 
